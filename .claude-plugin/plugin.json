@@ -1,0 +1,13 @@
+{
+  "name": "lookalike-prospect-list",
+  "version": "1.0.0",
+  "description": "Turn 3 to 5 best customers into a Sales Navigator search for lookalike companies, export the people you sell to with verified emails through Evaboot, and clean the list.",
+  "author": { "name": "Evaboot", "url": "https://evaboot.com" },
+  "homepage": "https://evaboot.com/blog/how-to-build-prospect-list-with-claude",
+  "repository": "https://github.com/evaboot-labs/lookalike-prospect-list",
+  "license": "MIT",
+  "privacyPolicyUrl": "https://evaboot.com/privacy-policy",
+  "keywords": ["sales-navigator", "prospect-list", "lookalike", "icp", "evaboot", "mcp", "claude", "lead-generation"],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json"
+}

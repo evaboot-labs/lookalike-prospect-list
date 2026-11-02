@@ -1,0 +1,707 @@
+{
+  "name": "Lookalike prospect list (Evaboot MCP)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Build a lookalike prospect list",
+        "formDescription": "Paste 3 to 5 of your best customers. Evaboot builds the Sales Navigator search for the people you sell to at companies like them, and you decide before any credit is spent.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Best customers (the SEEDS.md table)",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "| MyTower | 11173669 | mytower.co | Software Development | 201 to 500 | Paris, Île-de-France, France |"
+            },
+            {
+              "fieldLabel": "Who you sell to (roles and region)",
+              "fieldType": "textarea",
+              "requiredField": true,
+              "placeholder": "Heads of Sales, VPs of Sales and Sales Directors based in Île-de-France, France"
+            },
+            {
+              "fieldLabel": "Leads to export",
+              "fieldType": "number",
+              "requiredField": true,
+              "placeholder": "10"
+            }
+          ]
+        },
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "ddbf741c-9d0e-4e3a-963f-bb2a5ae48938",
+      "name": "Your best customers",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "ddb79b49-de27-485d-aa10-f92f144ab4f2",
+              "name": "sheet_url",
+              "type": "string",
+              "value": "PASTE_YOUR_GOOGLE_SHEET_URL_WITH_GID"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "cdd6ac33-a891-4846-9b9c-4e59e335a385",
+      "name": "Your settings",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        220,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Same as lookalike.py profile: read the seed table, count what the customers share.\nconst HEADCOUNT = {\"1 to 10\": \"B\", \"11 to 50\": \"C\", \"51 to 200\": \"D\", \"201 to 500\": \"E\", \"501 to 1000\": \"F\", \"1001 to 5000\": \"G\", \"5001 to 10000\": \"H\", \"10001+\": \"I\"}, INDUSTRY = {\"Software Development\": 4, \"Technology, Information and Internet\": 6, \"Financial Services\": 43, \"IT Services and IT Consulting\": 96, \"Business Consulting and Services\": 11, \"Advertising Services\": 80};\nconst seeds = String($('Your best customers').first().json['Best customers (the SEEDS.md table)']).split('\\n')\n  .map(l => l.trim().replace(/^\\||\\|$/g, '').split('|').map(c => c.trim()))\n  .filter(c => c.length >= 6 && c[0] && c[0] !== 'Company' && !/^[-: ]+$/.test(c[0]))\n  .map(c => ({ name: c[0], id: c[1].replace(/\\D/g, ''), domain: c[2].toLowerCase(), industry: c[3], employees: c[4], location: c[5] }));\nif (seeds.length < 2) throw new Error('Paste at least 2 customers as table rows: | Company | LinkedIn id | Domain | Industry | Employees | Location |');\nconst uniq = a => [...new Set(a)];\nconst industries = uniq(seeds.map(s => s.industry)), sizes = uniq(seeds.map(s => s.employees));\nconst unknown = industries.filter(i => !(i in INDUSTRY));\nif (unknown.length) throw new Error('Add the LinkedIn id of these industries to INDUSTRY in this node: ' + unknown.join(', '));\nreturn [{ json: { seeds, industry_ids: industries.map(i => INDUSTRY[i]), headcount_codes: sizes.map(s => HEADCOUNT[s]).filter(Boolean).sort(),\n  exclude_company_ids: seeds.map(s => s.id).filter(Boolean),\n  summary: `${seeds.length} customers: ${industries.join(', ')}; ${sizes.join(', ')}` } }];\n"
+      },
+      "id": "0f86d217-0c39-4b18-8a7e-2fca3beaaa55",
+      "name": "Profile",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://mcp.evaboot.com/mcp",
+        "authentication": "bearerAuth",
+        "tool": {
+          "__rl": true,
+          "mode": "list",
+          "value": "build_sn_search_from_prompt",
+          "cachedResultName": "build_sn_search_from_prompt"
+        },
+        "inputMode": "json",
+        "jsonInput": "={{ JSON.stringify({ prompt: $('Your best customers').first().json['Who you sell to (roles and region)'], max_results: Number($('Your best customers').first().json['Leads to export']) || 10 }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "f0e60159-4e8f-4d0c-9aec-bf05cad315c6",
+      "name": "Build the people search",
+      "type": "@n8n/n8n-nodes-langchain.mcpClient",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        0
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "Evaboot MCP (Bearer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "id": "79536f36-5446-46a6-adeb-6c71e5320990",
+      "name": "Wait 20 s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://mcp.evaboot.com/mcp",
+        "authentication": "bearerAuth",
+        "tool": {
+          "__rl": true,
+          "mode": "list",
+          "value": "get_search_build",
+          "cachedResultName": "get_search_build"
+        },
+        "inputMode": "json",
+        "jsonInput": "={{ JSON.stringify({ build_id: $('Build the people search').first().json.structuredContent.result.build_id }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "6f350a5f-ac21-4e2e-987c-1a8876686780",
+      "name": "Check the build",
+      "type": "@n8n/n8n-nodes-langchain.mcpClient",
+      "typeVersion": 1.1,
+      "position": [
+        1100,
+        0
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "Evaboot MCP (Bearer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "be6cbfd7-e124-4742-bd9c-db38c200cda6",
+              "leftValue": "={{ $json.structuredContent.result.status }}",
+              "rightValue": "complete",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "55dad83a-9bea-4e6e-b193-8520f23b1935",
+      "name": "Built?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1320,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Same as lookalike.py url: add the customers' industries, sizes and headquarters region, exclude the customers.\nconst p = $('Profile').first().json;\nlet url = $json.structuredContent?.result?.url;\nif (!url || !url.includes('filters%3AList(')) throw new Error('Evaboot returned no people search URL: ' + JSON.stringify($json.structuredContent?.result).slice(0, 300));\nconst list = (type, vals, sel = 'INCLUDED') => `(type%3A${type}%2Cvalues%3AList(${vals.map(v => `(id%3A${v}%2CselectionType%3A${sel})`).join('%2C')}))`;\nconst parts = [];\nif (p.industry_ids.length) parts.push(list('INDUSTRY', p.industry_ids));\nif (p.headcount_codes.length) parts.push(list('COMPANY_HEADCOUNT', p.headcount_codes));\nconst regions = url.match(/type%3AREGION%2Cvalues%3AList\\(((?:\\(id%3A\\d+%2CselectionType%3AINCLUDED\\)(?:%2C)?)+)\\)/);\nif (regions && !url.includes('COMPANY_HEADQUARTERS')) parts.push(`(type%3ACOMPANY_HEADQUARTERS%2Cvalues%3AList(${regions[1]}))`);\nif (p.exclude_company_ids.length) parts.push(list('CURRENT_COMPANY', p.exclude_company_ids.map(i => encodeURIComponent(encodeURIComponent('urn:li:organization:' + i))), 'EXCLUDED'));\nif (!parts.length) throw new Error('No lookalike filter to add: the seeds have no known industry, size or LinkedIn id.');\nurl = url.replace('filters%3AList(', 'filters%3AList(' + parts.join('%2C') + '%2C');\nreturn [{ json: { url, count: $json.structuredContent.result.result_count } }];\n"
+      },
+      "id": "0d909422-d728-4c15-a667-058cb3c9f202",
+      "name": "Add lookalike filters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "What next?",
+              "fieldType": "dropdown",
+              "requiredField": true,
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "Export the leads"
+                  },
+                  {
+                    "option": "Stop here"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "formTitle": "={{ $('Profile').first().json.summary }}",
+          "formDescription": "=Exporting costs 1 Evaboot credit per lead, email included ({{ $('Your best customers').first().json['Leads to export'] }} leads). <a href=\"{{ $json.url }}\" target=\"_blank\">Open the search in Sales Navigator</a>"
+        }
+      },
+      "id": "a3e87815-6d16-45b8-be24-250c2f1559ac",
+      "name": "Review the search",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        0,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b089c394-199d-41fc-91eb-04b91d47eba4",
+              "leftValue": "={{ $json['What next?'] }}",
+              "rightValue": "Export the leads",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "1c442e33-e1a8-405c-9df0-3439200845b7",
+      "name": "Export?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        220,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://mcp.evaboot.com/mcp",
+        "authentication": "bearerAuth",
+        "tool": {
+          "__rl": true,
+          "mode": "list",
+          "value": "export_sn_search_or_list",
+          "cachedResultName": "export_sn_search_or_list"
+        },
+        "inputMode": "json",
+        "jsonInput": "={{ JSON.stringify({ search_url: $('Add lookalike filters').first().json.url, max_results: Number($('Your best customers').first().json['Leads to export']) || 10, name: 'Lookalike list ' + $now.toFormat('yyyy-MM-dd') }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "1a6f3286-7d29-4a76-95b4-3bfb81af47b0",
+      "name": "Export with Evaboot",
+      "type": "@n8n/n8n-nodes-langchain.mcpClient",
+      "typeVersion": 1.1,
+      "position": [
+        440,
+        400
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "Evaboot MCP (Bearer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 30
+      },
+      "id": "bd8e574b-3f94-4c84-9167-2f30efa3db53",
+      "name": "Wait 30 s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        660,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "endpointUrl": "https://mcp.evaboot.com/mcp",
+        "authentication": "bearerAuth",
+        "tool": {
+          "__rl": true,
+          "mode": "list",
+          "value": "get_export",
+          "cachedResultName": "get_export"
+        },
+        "inputMode": "json",
+        "jsonInput": "={{ JSON.stringify({ extraction_id: $('Export with Evaboot').first().json.structuredContent.result.extraction_id }) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "09100f36-31e1-4243-9727-404efd422e38",
+      "name": "Check the export",
+      "type": "@n8n/n8n-nodes-langchain.mcpClient",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        400
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "",
+          "name": "Evaboot MCP (Bearer)"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cce76e61-433c-42d7-b820-a6dfef8960dd",
+              "leftValue": "={{ $json.structuredContent.result.status }}",
+              "rightValue": "EXECUTED",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5097fce6-b803-4df2-be50-3d6407fb7c98",
+      "name": "Done?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Stop instead of waiting forever when the export failed.\nconst r = $json.structuredContent.result;\nif (r.failure_reason || /FAIL|ERROR|CANCEL/i.test(r.status || '')) throw new Error(`The export stopped: ${r.status} ${r.failure_reason || ''}`);\nreturn [$input.first()];\n"
+      },
+      "id": "993be82e-14ee-491e-ae98-3739454a9a46",
+      "name": "Still running?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1100,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Stop instead of polling forever when the search build failed.\nconst r = $json.structuredContent.result;\nif (r.failure_reason || /FAIL|ERROR|CANCEL/i.test(r.status || '')) throw new Error(`The search build stopped: ${r.status} ${r.failure_reason || ''}`);\nreturn [$input.first()];\n"
+      },
+      "id": "2ceacc60-c52e-4490-a009-9a2a75509bd0",
+      "name": "Still building?",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Same as lookalike.py clean: drop customers, duplicates, leads outside the filters and unsafe emails;\n// say which customer each lead looks like.\nconst seeds = $('Profile').first().json.seeds;\nconst region = l => String(l || '').split(',').map(s => s.trim()).slice(-2).join(', ');\nconst blocked = new Set(seeds.flatMap(s => [s.domain, s.name.toLowerCase()]).filter(Boolean));\nconst seen = new Set(), rows = [];\nfor (const x of $json.structuredContent?.result?.prospects || []) {\n  const key = x['Linkedin URL Unique ID'] || x['Sales Navigator URL'];\n  if (seen.has(key)) continue; seen.add(key);\n  if (blocked.has((x['Company Domain'] || '').toLowerCase()) || blocked.has((x['Company Name'] || '').toLowerCase())) continue;\n  if (x['Matches Filters'] === 'NO' || String(x['Email Status']).toLowerCase() !== 'safe') continue;\n  const same = s => [['industry', s.industry === x['Company Industry']], ['size', s.employees === x['Company Employee Range']],\n    ['region', region(s.location) === region(x['Company Location'])]].filter(([, ok]) => ok).map(([k]) => k);\n  const twin = seeds.reduce((a, b) => same(b).length > same(a).length ? b : a);\n  rows.push({ json: { 'First name': x['First Name'], 'Last name': x['Last Name'], 'Job title': x['Current Job'],\n    Company: x['Company Name'], Domain: x['Company Domain'], Industry: x['Company Industry'], Employees: x['Company Employee Range'],\n    'Company location': x['Company Location'], Email: x['Email'], 'Email status': x['Email Status'],\n    LinkedIn: x['Linkedin URL Public'], 'Looks like': twin.name, 'Same as that customer': same(twin).join(', ') || 'none' } });\n}\nif (!rows.length) throw new Error('No lead kept: none had a safe email inside the filters.');\nreturn rows;\n"
+      },
+      "id": "6182a6e3-1433-4868-a7ff-5f70aa71229f",
+      "name": "Clean rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Your settings').first().json.sheet_url }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Your settings').first().json.sheet_url }}"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "ddd60c55-c6b2-4d81-a8ba-9b7068816856",
+      "name": "Add to your sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1540,
+        400
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Your list is in your sheet",
+        "completionMessage": "={{ $('Clean rows').all().length }} leads with a safe email, each with the customer it looks like.",
+        "options": {}
+      },
+      "id": "1cf0fbfe-ce4c-4fd4-a12e-e723cc46e629",
+      "name": "Leads saved",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        1760,
+        400
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "operation": "completion",
+        "completionTitle": "Nothing exported",
+        "completionMessage": "No credit was spent. Change your customers or roles and submit the form again.",
+        "options": {}
+      },
+      "id": "6d999070-62cf-4c20-919f-492f56786c15",
+      "name": "Stopped",
+      "type": "n8n-nodes-base.form",
+      "typeVersion": 2.3,
+      "position": [
+        440,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "Your best customers": {
+      "main": [
+        [
+          {
+            "node": "Your settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Your settings": {
+      "main": [
+        [
+          {
+            "node": "Profile",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Profile": {
+      "main": [
+        [
+          {
+            "node": "Build the people search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build the people search": {
+      "main": [
+        [
+          {
+            "node": "Wait 20 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 20 s": {
+      "main": [
+        [
+          {
+            "node": "Check the build",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check the build": {
+      "main": [
+        [
+          {
+            "node": "Built?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add lookalike filters": {
+      "main": [
+        [
+          {
+            "node": "Review the search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Review the search": {
+      "main": [
+        [
+          {
+            "node": "Export?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export with Evaboot": {
+      "main": [
+        [
+          {
+            "node": "Wait 30 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 30 s": {
+      "main": [
+        [
+          {
+            "node": "Check the export",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check the export": {
+      "main": [
+        [
+          {
+            "node": "Done?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still running?": {
+      "main": [
+        [
+          {
+            "node": "Wait 30 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean rows": {
+      "main": [
+        [
+          {
+            "node": "Add to your sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to your sheet": {
+      "main": [
+        [
+          {
+            "node": "Leads saved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Built?": {
+      "main": [
+        [
+          {
+            "node": "Add lookalike filters",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Still building?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Still building?": {
+      "main": [
+        [
+          {
+            "node": "Wait 20 s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Export?": {
+      "main": [
+        [
+          {
+            "node": "Export with Evaboot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Stopped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Done?": {
+      "main": [
+        [
+          {
+            "node": "Clean rows",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Still running?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}
