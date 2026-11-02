@@ -1,0 +1,14 @@
+{
+  "name": "evaboot-labs-lookalike-prospect-list",
+  "owner": { "name": "Evaboot", "url": "https://evaboot.com" },
+  "metadata": {
+    "description": "Build a B2B prospect list in one session from your best customers: a Sales Navigator search for companies like them, verified emails, a clean CSV or Sheet."
+  },
+  "plugins": [
+    {
+      "name": "lookalike-prospect-list",
+      "source": "./",
+      "description": "Turn 3 to 5 best customers into a Sales Navigator search for lookalike companies, export the people you sell to with verified emails through Evaboot, and clean the list."
+    }
+  ]
+}

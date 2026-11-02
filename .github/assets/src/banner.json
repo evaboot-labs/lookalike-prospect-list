@@ -1,0 +1,7 @@
+{"layout": "flow", "eyebrow": "evaboot-labs · lookalike-prospect-list", "headline": "Clone your best customers.",
+ "subline": "3 to 5 customers in. A clean prospect list of companies like them out.",
+ "nodes": [{"label": "01 · Seeds", "title": "Best customers", "caption": "Industry, size, headquarters"},
+           {"label": "02 · Search", "title": "Sales Navigator", "caption": "Built by your AI Agent"},
+           {"label": "03 · Export", "title": "Evaboot", "caption": "Verified emails, customers removed"},
+           {"label": "04 · Result", "title": "Clean list", "caption": "CSV or Sheet, ready to use"}],
+ "spec": "server <em>mcp.evaboot.com/mcp</em> · one session, no schedule"}
